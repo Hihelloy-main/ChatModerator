@@ -2,6 +2,7 @@ package com.Hihelloy.chatmoderator.listeners;
 
 import com.Hihelloy.chatmoderator.ChatModeratorPlugin;
 import com.Hihelloy.chatmoderator.config.ConfigManager;
+import com.Hihelloy.chatmoderator.data.MuteDatabase;
 import com.Hihelloy.chatmoderator.services.ModerationService;
 import com.Hihelloy.chatmoderator.utils.SchedulerUtil;
 import org.bukkit.Bukkit;
@@ -12,12 +13,11 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class ChatListener implements Listener {
@@ -25,13 +25,13 @@ public class ChatListener implements Listener {
     private final ChatModeratorPlugin plugin;
     private final ConfigManager configManager;
     private final ModerationService moderationService;
+    private final MuteDatabase muteDatabase;
 
-    private final Map<UUID, Long> mutedPlayers = new ConcurrentHashMap<>();
-
-    public ChatListener(ChatModeratorPlugin plugin) {
+    public ChatListener(ChatModeratorPlugin plugin, MuteDatabase muteDatabase) {
         this.plugin = plugin;
         this.configManager = plugin.getConfigManager();
         this.moderationService = plugin.getModerationService();
+        this.muteDatabase = muteDatabase;
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
@@ -47,7 +47,7 @@ public class ChatListener implements Listener {
 
         if (isMuted(player)) {
             event.setCancelled(true);
-            player.sendMessage(ChatColor.RED + "You are temporarily muted and cannot chat.");
+            player.sendMessage(ChatColor.RED + "You are muted and cannot chat.");
             if (configManager.isDebugEnabled()) {
                 plugin.getLogger().info("[DEBUG] Muted player " + player.getName() + " blocked.");
             }
@@ -120,14 +120,23 @@ public class ChatListener implements Listener {
     }
 
     @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        mutedPlayers.remove(event.getPlayer().getUniqueId());
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        if (isMuted(player)) {
+            Long unmuteAt = muteDatabase.getUnmuteTime(player.getUniqueId());
+            if (unmuteAt != null && unmuteAt != -1L) {
+                long secsLeft = (unmuteAt - System.currentTimeMillis()) / 1000;
+                player.sendMessage(ChatColor.RED + "You are still muted. Time remaining: " + secsLeft + "s.");
+            } else {
+                player.sendMessage(ChatColor.RED + "You are permanently muted.");
+            }
+        }
     }
 
     private void applyPunishment(Player player, String message, String reason) {
         int muteDurationSeconds = configManager.getMuteDurationSeconds();
-        mutedPlayers.put(player.getUniqueId(),
-                System.currentTimeMillis() + muteDurationSeconds * 1000L);
+        long unmuteAt = System.currentTimeMillis() + muteDurationSeconds * 1000L;
+        muteDatabase.mute(player.getUniqueId(), unmuteAt);
 
         if (configManager.shouldWarnPlayer()) {
             player.sendMessage(ChatColor.translateAlternateColorCodes('&',
@@ -154,31 +163,26 @@ public class ChatListener implements Listener {
     }
 
     public boolean isMuted(Player player) {
-        Long unmuteTime = mutedPlayers.get(player.getUniqueId());
-        if (unmuteTime == null) return false;
-        if (unmuteTime != -1L && System.currentTimeMillis() >= unmuteTime) {
-            mutedPlayers.remove(player.getUniqueId());
-            return false;
-        }
-        return true;
+        return muteDatabase.isMuted(player.getUniqueId());
     }
 
     public void mutePlayer(Player player, int durationSeconds) {
-        long until = durationSeconds < 0
+        long unmuteAt = durationSeconds < 0
                 ? -1L
                 : System.currentTimeMillis() + durationSeconds * 1000L;
-        mutedPlayers.put(player.getUniqueId(), until);
+        muteDatabase.mute(player.getUniqueId(), unmuteAt);
+    }
+
+    public void unmutePlayer(UUID uuid) {
+        muteDatabase.unmute(uuid);
     }
 
     public void unmutePlayer(Player player) {
-        if (mutedPlayers.remove(player.getUniqueId()) != null) {
-            player.sendMessage(ChatColor.GREEN + "You have been unmuted.");
-        } else {
-            player.sendMessage(ChatColor.RED + "You were not muted.");
-        }
+        muteDatabase.unmute(player.getUniqueId());
+        player.sendMessage(ChatColor.GREEN + "You have been unmuted.");
     }
 
     public Map<UUID, Long> getMutedPlayers() {
-        return Map.copyOf(mutedPlayers);
+        return muteDatabase.getAll();
     }
 }

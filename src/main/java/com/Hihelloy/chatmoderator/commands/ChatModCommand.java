@@ -2,11 +2,13 @@ package com.Hihelloy.chatmoderator.commands;
 
 import com.Hihelloy.chatmoderator.ChatModeratorPlugin;
 import com.Hihelloy.chatmoderator.config.ConfigManager;
+import com.Hihelloy.chatmoderator.data.MuteDatabase;
 import com.Hihelloy.chatmoderator.listeners.ChatListener;
 import com.Hihelloy.chatmoderator.services.ModerationService;
 import com.Hihelloy.chatmoderator.utils.SchedulerUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -26,12 +28,14 @@ public class ChatModCommand implements CommandExecutor, TabCompleter {
     private final ConfigManager configManager;
     private final ChatListener chatListener;
     private final ModerationService moderationService;
+    private final MuteDatabase muteDatabase;
 
     public ChatModCommand(ChatModeratorPlugin plugin, ChatListener chatListener) {
         this.plugin = plugin;
         this.configManager = plugin.getConfigManager();
         this.chatListener = chatListener;
         this.moderationService = plugin.getModerationService();
+        this.muteDatabase = plugin.getMuteDatabase();
     }
 
     @Override
@@ -122,7 +126,7 @@ public class ChatModCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "/chatmod toggle" + ChatColor.WHITE + " - Toggle moderation on/off");
         sender.sendMessage(ChatColor.YELLOW + "/chatmod add-word <word>" + ChatColor.WHITE + " - Add a blocked word");
         sender.sendMessage(ChatColor.YELLOW + "/chatmod remove-word <word>" + ChatColor.WHITE + " - Remove a blocked word");
-        sender.sendMessage(ChatColor.YELLOW + "/chatmod unmute <player>" + ChatColor.WHITE + " - Unmute a player");
+        sender.sendMessage(ChatColor.YELLOW + "/chatmod unmute <player>" + ChatColor.WHITE + " - Unmute a player (works offline)");
         sender.sendMessage(ChatColor.YELLOW + "/chatmod aitest <message>" + ChatColor.WHITE + " - Test AI moderation");
         sender.sendMessage(ChatColor.YELLOW + "/chatmod mutedplayers" + ChatColor.WHITE + " - List currently muted players");
     }
@@ -157,7 +161,7 @@ public class ChatModCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "Gemini API Key: "
                 + (geminiOk ? ChatColor.GREEN + "Configured" : ChatColor.RED + "Not Configured"));
         sender.sendMessage(ChatColor.YELLOW + "Currently Muted: "
-                + ChatColor.WHITE + chatListener.getMutedPlayers().size() + " player(s)");
+                + ChatColor.WHITE + muteDatabase.getAll().size() + " player(s)");
     }
 
     private void handleToggle(CommandSender sender) {
@@ -202,17 +206,28 @@ public class ChatModCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleUnmute(CommandSender sender, String targetName) {
-        Player target = Bukkit.getPlayerExact(targetName);
-        if (target == null) {
-            sender.sendMessage(ChatColor.RED + "Player '" + targetName + "' is not online.");
+        Player online = Bukkit.getPlayerExact(targetName);
+        if (online != null) {
+            if (!muteDatabase.isMuted(online.getUniqueId())) {
+                sender.sendMessage(ChatColor.RED + targetName + " is not currently muted.");
+                return;
+            }
+            chatListener.unmutePlayer(online);
+            sender.sendMessage(ChatColor.GREEN + targetName + " has been unmuted.");
             return;
         }
-        if (chatListener.isMuted(target)) {
-            chatListener.unmutePlayer(target);
-            sender.sendMessage(ChatColor.GREEN + target.getName() + " has been unmuted.");
-        } else {
-            sender.sendMessage(ChatColor.RED + target.getName() + " is not currently muted.");
+
+        OfflinePlayer offline = Bukkit.getOfflinePlayer(targetName);
+        if (!offline.hasPlayedBefore()) {
+            sender.sendMessage(ChatColor.RED + "Player '" + targetName + "' has never joined this server.");
+            return;
         }
+        if (!muteDatabase.isMuted(offline.getUniqueId())) {
+            sender.sendMessage(ChatColor.RED + targetName + " is not currently muted.");
+            return;
+        }
+        chatListener.unmutePlayer(offline.getUniqueId());
+        sender.sendMessage(ChatColor.GREEN + targetName + " has been unmuted.");
     }
 
     private void handleAITest(CommandSender sender, String message) {
@@ -230,7 +245,7 @@ public class ChatModCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleMutedPlayers(CommandSender sender) {
-        Map<UUID, Long> muted = chatListener.getMutedPlayers();
+        Map<UUID, Long> muted = muteDatabase.getAll();
         sender.sendMessage(ChatColor.GOLD + "=== Muted Players (" + muted.size() + ") ===");
         if (muted.isEmpty()) {
             sender.sendMessage(ChatColor.YELLOW + "No players are currently muted.");
@@ -238,8 +253,9 @@ public class ChatModCommand implements CommandExecutor, TabCompleter {
         }
         long now = System.currentTimeMillis();
         for (Map.Entry<UUID, Long> entry : muted.entrySet()) {
-            Player p = Bukkit.getPlayer(entry.getKey());
-            String name = p != null ? p.getName() : entry.getKey().toString();
+            OfflinePlayer p = Bukkit.getOfflinePlayer(entry.getKey());
+            String name = p.getName() != null ? p.getName() : entry.getKey().toString();
+            String online = p.isOnline() ? ChatColor.GREEN + " [online]" : "";
             String timeStr;
             if (entry.getValue() == -1L) {
                 timeStr = "permanent";
@@ -247,7 +263,7 @@ public class ChatModCommand implements CommandExecutor, TabCompleter {
                 long secsLeft = (entry.getValue() - now) / 1000;
                 timeStr = secsLeft + "s remaining";
             }
-            sender.sendMessage(ChatColor.YELLOW + name + ChatColor.GRAY + " — " + timeStr);
+            sender.sendMessage(ChatColor.YELLOW + name + ChatColor.GRAY + " — " + timeStr + online);
         }
     }
 
@@ -270,8 +286,9 @@ public class ChatModCommand implements CommandExecutor, TabCompleter {
                 }
             } else if (args[0].equalsIgnoreCase("unmute")) {
                 String prefix = args[1].toLowerCase();
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    if (chatListener.isMuted(p) && p.getName().toLowerCase().startsWith(prefix)) {
+                for (Map.Entry<UUID, Long> entry : muteDatabase.getAll().entrySet()) {
+                    OfflinePlayer p = Bukkit.getOfflinePlayer(entry.getKey());
+                    if (p.getName() != null && p.getName().toLowerCase().startsWith(prefix)) {
                         completions.add(p.getName());
                     }
                 }

@@ -3,6 +3,7 @@ package com.Hihelloy.chatmoderator;
 import com.cjcrafter.foliascheduler.FoliaCompatibility;
 import com.cjcrafter.foliascheduler.ServerImplementation;
 import com.Hihelloy.chatmoderator.config.ConfigManager;
+import com.Hihelloy.chatmoderator.data.MuteDatabase;
 import com.Hihelloy.chatmoderator.listeners.ChatListener;
 import com.Hihelloy.chatmoderator.services.ModerationService;
 import com.Hihelloy.chatmoderator.commands.ChatModCommand;
@@ -15,6 +16,7 @@ import java.util.logging.Logger;
 public class ChatModeratorPlugin extends JavaPlugin {
 
     private ConfigManager configManager;
+    private MuteDatabase muteDatabase;
     private ModerationService moderationService;
     private SchedulerUtil schedulerUtil;
     private ChatListener chatListener;
@@ -34,9 +36,12 @@ public class ChatModeratorPlugin extends JavaPlugin {
         configManager = new ConfigManager(this);
         configManager.loadConfig();
 
+        muteDatabase = new MuteDatabase(this);
+        muteDatabase.load();
+
         moderationService = new ModerationService(this, configManager);
 
-        chatListener = new ChatListener(this);
+        chatListener = new ChatListener(this, muteDatabase);
         getServer().getPluginManager().registerEvents(chatListener, this);
 
         ChatModCommand cmd = new ChatModCommand(this, chatListener);
@@ -49,6 +54,9 @@ public class ChatModeratorPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (muteDatabase != null) {
+            muteDatabase.save();
+        }
         SchedulerUtil.shutdown();
         log.info(color(configManager.getPluginDisabled()));
     }
@@ -79,6 +87,10 @@ public class ChatModeratorPlugin extends JavaPlugin {
 
     public ConfigManager getConfigManager() {
         return configManager;
+    }
+
+    public MuteDatabase getMuteDatabase() {
+        return muteDatabase;
     }
 
     public ModerationService getModerationService() {
