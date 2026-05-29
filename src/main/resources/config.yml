@@ -1,0 +1,62 @@
+# Chat Moderator Plugin Configuration
+
+# General moderation settings
+moderation:
+  enabled: true                  # Enable or disable the entire moderation system
+  use-ai-moderation: true        # Send messages to AI for content analysis
+  use-word-filter: true          # Enable local keyword word-filter (runs before AI)
+  mute-duration-seconds: 600     # How long (seconds) a player is muted after a violation
+
+  # Custom blocked words (whole-word matching — "sex" will NOT block "sextant")
+  blocked-words:
+    # - "example"
+
+  # AI moderation sensitivity thresholds (0.0–1.0). Lower = more strict.
+  # Only used with the OpenAI provider (Gemini uses label classification instead).
+  thresholds:
+    harassment: 0.7
+    hate: 0.7
+    self-harm: 0.8
+    sexual: 0.8
+    violence: 0.7
+    hate/threatening: 0.8
+    self-harm/intent: 0.9
+    self-harm/instructions: 0.9
+    sexual/minors: 0.9
+    violence/graphic: 0.8
+
+# OpenAI API Configuration
+# Model "text-moderation-latest" uses the free /v1/moderations endpoint.
+openai:
+  api-key: "your-openai-api-key-here"
+  model: "text-moderation-latest"
+
+# Google Gemini API Configuration
+gemini:
+  api-key: "your-gemini-api-key-here"
+  model: "gemini-1.5-flash"
+
+# AI Provider selection
+ai:
+  preferred-provider: "openai"   # "openai" or "gemini"
+
+# What happens when a violation is detected
+actions:
+  block-message: true            # Cancel the offending chat message
+  warn-player: true              # Send a warning to the offending player
+  notify-admins: true            # Notify online operators (chatmoderator.admin permission)
+  log-violations: true           # Log violations to the server console
+
+# Messages (supports & colour codes)
+messages:
+  message-blocked: "&cYour message was blocked by the chat filter."
+  violation-warning: "&eYour message was blocked and you have been temporarily muted."
+  admin-notification: "&6[ChatMod] &c{player} &7sent a blocked message &8(&7{reason}&8)&7: &f{message}"
+  plugin-reloaded: "&aChatModerator configuration reloaded!"
+  plugin-enabled: "&aChatModerator enabled!"
+  plugin-disabled: "&cChatModerator disabled!"
+
+# Debug / troubleshooting
+debug:
+  enabled: false
+  log-all-messages: false
