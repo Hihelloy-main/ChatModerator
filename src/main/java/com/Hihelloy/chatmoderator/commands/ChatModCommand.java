@@ -15,6 +15,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -27,9 +28,9 @@ public class ChatModCommand implements CommandExecutor, TabCompleter {
     private final ModerationService moderationService;
 
     public ChatModCommand(ChatModeratorPlugin plugin, ChatListener chatListener) {
-        this.plugin            = plugin;
-        this.configManager     = plugin.getConfigManager();
-        this.chatListener      = chatListener;
+        this.plugin = plugin;
+        this.configManager = plugin.getConfigManager();
+        this.chatListener = chatListener;
         this.moderationService = plugin.getModerationService();
     }
 
@@ -41,7 +42,6 @@ public class ChatModCommand implements CommandExecutor, TabCompleter {
         }
 
         switch (args[0].toLowerCase()) {
-
             case "reload":
             case "status":
             case "toggle":
@@ -54,7 +54,6 @@ public class ChatModCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 break;
-
             case "unmute":
                 if (!sender.hasPermission("chatmoderator.admin")
                         && !sender.hasPermission("chatmoderator.command.unmute")) {
@@ -62,7 +61,6 @@ public class ChatModCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 break;
-
             default:
                 sendHelpMessage(sender);
                 return true;
@@ -79,20 +77,32 @@ public class ChatModCommand implements CommandExecutor, TabCompleter {
                 handleToggle(sender);
                 break;
             case "add-word":
-                if (args.length < 2) { sender.sendMessage(ChatColor.RED + "Usage: /chatmod add-word <word>"); return true; }
+                if (args.length < 2) {
+                    sender.sendMessage(ChatColor.RED + "Usage: /chatmod add-word <word>");
+                    return true;
+                }
                 handleAddWord(sender, args[1]);
                 break;
             case "remove-word":
-                if (args.length < 2) { sender.sendMessage(ChatColor.RED + "Usage: /chatmod remove-word <word>"); return true; }
+                if (args.length < 2) {
+                    sender.sendMessage(ChatColor.RED + "Usage: /chatmod remove-word <word>");
+                    return true;
+                }
                 handleRemoveWord(sender, args[1]);
                 break;
             case "unmute":
-                if (args.length < 2) { sender.sendMessage(ChatColor.RED + "Usage: /chatmod unmute <player>"); return true; }
+                if (args.length < 2) {
+                    sender.sendMessage(ChatColor.RED + "Usage: /chatmod unmute <player>");
+                    return true;
+                }
                 handleUnmute(sender, args[1]);
                 break;
             case "aitest":
-                if (args.length < 2) { sender.sendMessage(ChatColor.RED + "Usage: /chatmod aitest <message>"); return true; }
-                handleAITest(sender, String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)));
+                if (args.length < 2) {
+                    sender.sendMessage(ChatColor.RED + "Usage: /chatmod aitest <message>");
+                    return true;
+                }
+                handleAITest(sender, String.join(" ", Arrays.copyOfRange(args, 1, args.length)));
                 break;
             case "mutedplayers":
                 handleMutedPlayers(sender);
@@ -107,23 +117,21 @@ public class ChatModCommand implements CommandExecutor, TabCompleter {
 
     private void sendHelpMessage(CommandSender sender) {
         sender.sendMessage(ChatColor.GOLD + "=== Chat Moderator Commands ===");
-        sender.sendMessage(ChatColor.YELLOW + "/chatmod reload"              + ChatColor.WHITE + " - Reload configuration");
-        sender.sendMessage(ChatColor.YELLOW + "/chatmod status"              + ChatColor.WHITE + " - Show plugin status");
-        sender.sendMessage(ChatColor.YELLOW + "/chatmod toggle"              + ChatColor.WHITE + " - Toggle moderation on/off");
-        sender.sendMessage(ChatColor.YELLOW + "/chatmod add-word <word>"     + ChatColor.WHITE + " - Add a blocked word");
-        sender.sendMessage(ChatColor.YELLOW + "/chatmod remove-word <word>"  + ChatColor.WHITE + " - Remove a blocked word");
-        sender.sendMessage(ChatColor.YELLOW + "/chatmod unmute <player>"     + ChatColor.WHITE + " - Unmute a player");
-        sender.sendMessage(ChatColor.YELLOW + "/chatmod aitest <message>"    + ChatColor.WHITE + " - Test AI moderation");
-        sender.sendMessage(ChatColor.YELLOW + "/chatmod mutedplayers"        + ChatColor.WHITE + " - List currently muted players");
+        sender.sendMessage(ChatColor.YELLOW + "/chatmod reload" + ChatColor.WHITE + " - Reload configuration");
+        sender.sendMessage(ChatColor.YELLOW + "/chatmod status" + ChatColor.WHITE + " - Show plugin status");
+        sender.sendMessage(ChatColor.YELLOW + "/chatmod toggle" + ChatColor.WHITE + " - Toggle moderation on/off");
+        sender.sendMessage(ChatColor.YELLOW + "/chatmod add-word <word>" + ChatColor.WHITE + " - Add a blocked word");
+        sender.sendMessage(ChatColor.YELLOW + "/chatmod remove-word <word>" + ChatColor.WHITE + " - Remove a blocked word");
+        sender.sendMessage(ChatColor.YELLOW + "/chatmod unmute <player>" + ChatColor.WHITE + " - Unmute a player");
+        sender.sendMessage(ChatColor.YELLOW + "/chatmod aitest <message>" + ChatColor.WHITE + " - Test AI moderation");
+        sender.sendMessage(ChatColor.YELLOW + "/chatmod mutedplayers" + ChatColor.WHITE + " - List currently muted players");
     }
 
     private void handleReload(CommandSender sender) {
         try {
             plugin.reloadPluginConfig();
-
             moderationService.initClients();
-            sender.sendMessage(ChatColor.translateAlternateColorCodes('&',
-                    configManager.getPluginReloaded()));
+            sender.sendMessage(ChatColor.translateAlternateColorCodes('&', configManager.getPluginReloaded()));
         } catch (Exception e) {
             sender.sendMessage(ChatColor.RED + "Error reloading config: " + e.getMessage());
         }
@@ -137,15 +145,11 @@ public class ChatModCommand implements CommandExecutor, TabCompleter {
                 && !configManager.getGeminiApiKey().isEmpty();
 
         sender.sendMessage(ChatColor.GOLD + "=== Chat Moderator Status ===");
-        sender.sendMessage(ChatColor.YELLOW + "Moderation Enabled: "
-                + bool(configManager.isModerationEnabled()));
-        sender.sendMessage(ChatColor.YELLOW + "AI Moderation: "
-                + bool(configManager.isAIModerationEnabled()));
-        sender.sendMessage(ChatColor.YELLOW + "Word Filter: "
-                + bool(configManager.isWordFilterEnabled()));
-        sender.sendMessage(ChatColor.YELLOW + "Blocked Words: "
-                + ChatColor.WHITE + configManager.getBlockedWords().stream()
-                        .filter(w -> !w.isEmpty()).count());
+        sender.sendMessage(ChatColor.YELLOW + "Moderation Enabled: " + bool(configManager.isModerationEnabled()));
+        sender.sendMessage(ChatColor.YELLOW + "AI Moderation: " + bool(configManager.isAIModerationEnabled()));
+        sender.sendMessage(ChatColor.YELLOW + "Word Filter: " + bool(configManager.isWordFilterEnabled()));
+        sender.sendMessage(ChatColor.YELLOW + "Blocked Words: " + ChatColor.WHITE
+                + configManager.getBlockedWords().stream().filter(w -> !w.isEmpty()).count());
         sender.sendMessage(ChatColor.YELLOW + "Preferred AI Provider: "
                 + ChatColor.WHITE + (provider != null ? provider : "none"));
         sender.sendMessage(ChatColor.YELLOW + "OpenAI API Key: "
@@ -215,13 +219,13 @@ public class ChatModCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.GOLD + "Running AI moderation test on: " + ChatColor.WHITE + message);
 
         moderationService.checkAIModerationAsync(message).thenAccept(result ->
-            SchedulerUtil.runGlobal(() -> {
-                sender.sendMessage(ChatColor.GOLD + "=== AI Moderation Test Result ===");
-                sender.sendMessage(ChatColor.YELLOW + "Verdict:  "
-                        + (result.isBlocked() ? ChatColor.RED + "BLOCKED" : ChatColor.GREEN + "SAFE"));
-                sender.sendMessage(ChatColor.YELLOW + "Reason:   " + ChatColor.WHITE + result.getReason());
-                sender.sendMessage(ChatColor.YELLOW + "Category: " + ChatColor.WHITE + result.getViolationType());
-            })
+                SchedulerUtil.runGlobal(() -> {
+                    sender.sendMessage(ChatColor.GOLD + "=== AI Moderation Test Result ===");
+                    sender.sendMessage(ChatColor.YELLOW + "Verdict:  "
+                            + (result.isBlocked() ? ChatColor.RED + "BLOCKED" : ChatColor.GREEN + "SAFE"));
+                    sender.sendMessage(ChatColor.YELLOW + "Reason:   " + ChatColor.WHITE + result.getReason());
+                    sender.sendMessage(ChatColor.YELLOW + "Category: " + ChatColor.WHITE + result.getViolationType());
+                })
         );
     }
 
@@ -234,8 +238,8 @@ public class ChatModCommand implements CommandExecutor, TabCompleter {
         }
         long now = System.currentTimeMillis();
         for (Map.Entry<UUID, Long> entry : muted.entrySet()) {
-            Player p       = Bukkit.getPlayer(entry.getKey());
-            String name    = p != null ? p.getName() : entry.getKey().toString();
+            Player p = Bukkit.getPlayer(entry.getKey());
+            String name = p != null ? p.getName() : entry.getKey().toString();
             String timeStr;
             if (entry.getValue() == -1L) {
                 timeStr = "permanent";
@@ -281,4 +285,3 @@ public class ChatModCommand implements CommandExecutor, TabCompleter {
         return value ? ChatColor.GREEN + "Yes" : ChatColor.RED + "No";
     }
 }
-

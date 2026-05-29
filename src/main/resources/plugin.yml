@@ -1,5 +1,5 @@
 name: ChatModerator
-version: 3
+version: 4.0
 main: com.Hihelloy.chatmoderator.ChatModeratorPlugin
 folia-supported: true
 api-version: '1.20'

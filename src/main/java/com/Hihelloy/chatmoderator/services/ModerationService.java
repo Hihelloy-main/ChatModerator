@@ -26,7 +26,6 @@ public class ModerationService {
     private final ConfigManager configManager;
 
     private Client geminiClient;
-
     private OkHttpClient httpClient;
 
     private static final MediaType JSON_TYPE = MediaType.get("application/json; charset=utf-8");
@@ -41,12 +40,11 @@ public class ModerationService {
         String provider = configManager.getPreferredAIProvider();
 
         this.geminiClient = null;
-        this.httpClient    = null;
+        this.httpClient = null;
 
         if ("gemini".equalsIgnoreCase(provider)) {
             String apiKey = configManager.getGeminiApiKey();
             if (apiKey != null && !apiKey.isEmpty() && !apiKey.equals("your-gemini-api-key-here")) {
-
                 this.geminiClient = Client.builder().apiKey(apiKey).build();
             }
         } else if ("openai".equalsIgnoreCase(provider)) {
@@ -69,7 +67,6 @@ public class ModerationService {
                 }
 
                 return checkRules(message);
-
             } catch (Exception e) {
                 plugin.getLogger().log(Level.SEVERE, "[ChatMod] AI moderation call failed", e);
                 return checkRules(message);
@@ -80,14 +77,14 @@ public class ModerationService {
     private ModerationResult checkWithGemini(String message) {
         String prompt =
                 "Classify this chat message for content moderation. " +
-                "Reply with EXACTLY one word — no punctuation, no explanation.\n\n" +
-                "Labels:\n" +
-                "  SAFE       – nothing harmful\n" +
-                "  HATE       – hate speech or slurs\n" +
-                "  SEXUAL     – sexual or explicit content\n" +
-                "  VIOLENCE   – threats or graphic violence\n" +
-                "  SELF_HARM  – self-harm or suicide\n\n" +
-                "Message: \"" + message + "\"";
+                        "Reply with EXACTLY one word — no punctuation, no explanation.\n\n" +
+                        "Labels:\n" +
+                        "  SAFE       – nothing harmful\n" +
+                        "  HATE       – hate speech or slurs\n" +
+                        "  SEXUAL     – sexual or explicit content\n" +
+                        "  VIOLENCE   – threats or graphic violence\n" +
+                        "  SELF_HARM  – self-harm or suicide\n\n" +
+                        "Message: \"" + message + "\"";
 
         try {
             GenerateContentResponse response = geminiClient.models
@@ -123,7 +120,7 @@ public class ModerationService {
 
     private ModerationResult checkWithOpenAI(String message) {
         String apiKey = configManager.getOpenAIApiKey();
-        String model  = configManager.getOpenAIModel();
+        String model = configManager.getOpenAIModel();
         Map<String, Double> thresholds = configManager.getModerationThresholds();
 
         JsonObject body = new JsonObject();
@@ -133,7 +130,7 @@ public class ModerationService {
         Request request = new Request.Builder()
                 .url("https://api.openai.com/v1/moderations")
                 .addHeader("Authorization", "Bearer " + apiKey)
-                .addHeader("Content-Type",  "application/json")
+                .addHeader("Content-Type", "application/json")
                 .post(RequestBody.create(body.toString(), JSON_TYPE))
                 .build();
 
@@ -144,18 +141,18 @@ public class ModerationService {
             }
 
             String responseBody = response.body() != null ? response.body().string() : "";
-            JsonObject json     = JsonParser.parseString(responseBody).getAsJsonObject();
+            JsonObject json = JsonParser.parseString(responseBody).getAsJsonObject();
 
             JsonArray results = json.getAsJsonArray("results");
             if (results == null || results.size() == 0) return checkRules(message);
 
             JsonObject result = results.get(0).getAsJsonObject();
-            boolean flagged   = result.get("flagged").getAsBoolean();
+            boolean flagged = result.get("flagged").getAsBoolean();
 
             if (!flagged) return ModerationResult.safe();
 
-            JsonObject categories      = result.getAsJsonObject("categories");
-            JsonObject categoryScores  = result.getAsJsonObject("category_scores");
+            JsonObject categories = result.getAsJsonObject("categories");
+            JsonObject categoryScores = result.getAsJsonObject("category_scores");
 
             String triggeredCategory = "policy violation";
             ModerationResult.ViolationType type = ModerationResult.ViolationType.WORD_FILTER;
@@ -167,7 +164,7 @@ public class ModerationService {
 
                 if (!categories.has(cat) || !categories.get(cat).getAsBoolean()) continue;
 
-                double score     = categoryScores.has(cat) ? categoryScores.get(cat).getAsDouble() : 1.0;
+                double score = categoryScores.has(cat) ? categoryScores.get(cat).getAsDouble() : 1.0;
                 double threshold = thresholds.getOrDefault(cat, 0.5);
 
                 if (score >= threshold) {
@@ -178,7 +175,6 @@ public class ModerationService {
             }
 
             return ModerationResult.block("AI (OpenAI) flagged: " + triggeredCategory, type);
-
         } catch (IOException e) {
             plugin.getLogger().log(Level.WARNING, "[ChatMod] OpenAI call failed, falling back to rules", e);
             return checkRules(message);
@@ -220,17 +216,17 @@ public class ModerationService {
         if (wordMatch(lower, "nigger") || wordMatch(lower, "nigga")
                 || wordMatch(lower, "faggot") || wordMatch(lower, "fag")
                 || wordMatch(lower, "retard") || wordMatch(lower, "sped")
-                || wordMatch(lower, "negro")  || wordMatch(lower, "ngr")
+                || wordMatch(lower, "negro") || wordMatch(lower, "ngr")
                 || wordMatch(lower, "nga")) {
             return ModerationResult.block("Rule: hate-speech word detected",
                     ModerationResult.ViolationType.HATE_SPEECH);
         }
 
-        if (wordMatch(lower, "sex")   || phraseMatch(lower, "blow job")
+        if (wordMatch(lower, "sex") || phraseMatch(lower, "blow job")
                 || wordMatch(lower, "blowjob") || wordMatch(lower, "cum")
-                || wordMatch(lower, "rape")    || wordMatch(lower, "horny")
-                || wordMatch(lower, "nude")    || wordMatch(lower, "naked")
-                || wordMatch(lower, "pubes")   || phraseMatch(lower, "blow me")
+                || wordMatch(lower, "rape") || wordMatch(lower, "horny")
+                || wordMatch(lower, "nude") || wordMatch(lower, "naked")
+                || wordMatch(lower, "pubes") || phraseMatch(lower, "blow me")
                 || phraseMatch(lower, "im horny")) {
             return ModerationResult.block("Rule: sexual content detected",
                     ModerationResult.ViolationType.SEXUAL);
@@ -240,11 +236,10 @@ public class ModerationService {
     }
 
     private boolean wordMatch(String text, String word) {
-
         int idx = text.indexOf(word);
         while (idx != -1) {
-            boolean startOk = (idx == 0)                || !Character.isLetterOrDigit(text.charAt(idx - 1));
-            boolean endOk   = (idx + word.length() == text.length())
+            boolean startOk = (idx == 0) || !Character.isLetterOrDigit(text.charAt(idx - 1));
+            boolean endOk = (idx + word.length() == text.length())
                     || !Character.isLetterOrDigit(text.charAt(idx + word.length()));
             if (startOk && endOk) return true;
             idx = text.indexOf(word, idx + 1);
@@ -256,4 +251,3 @@ public class ModerationService {
         return text.replace("'", "").contains(phrase);
     }
 }
-

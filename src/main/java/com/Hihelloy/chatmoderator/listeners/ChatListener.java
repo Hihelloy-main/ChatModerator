@@ -29,14 +29,14 @@ public class ChatListener implements Listener {
     private final Map<UUID, Long> mutedPlayers = new ConcurrentHashMap<>();
 
     public ChatListener(ChatModeratorPlugin plugin) {
-        this.plugin            = plugin;
-        this.configManager     = plugin.getConfigManager();
+        this.plugin = plugin;
+        this.configManager = plugin.getConfigManager();
         this.moderationService = plugin.getModerationService();
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
     public void onPlayerChat(AsyncPlayerChatEvent event) {
-        Player player  = event.getPlayer();
+        Player player = event.getPlayer();
         String message = event.getMessage();
 
         if (configManager.isDebugEnabled() && configManager.shouldLogAllMessages()) {
@@ -81,7 +81,6 @@ public class ChatListener implements Listener {
         }
 
         if (configManager.isAIModerationEnabled()) {
-
             event.setCancelled(true);
 
             final Set<Player> recipients = event.getRecipients().stream()
@@ -91,10 +90,8 @@ public class ChatListener implements Listener {
 
             moderationService.checkAIModerationAsync(message).thenAccept(result -> {
                 if (result.isBlocked()) {
-
                     SchedulerUtil.runGlobal(() -> applyPunishment(player, message, result.getReason()));
                 } else {
-
                     SchedulerUtil.runGlobal(() -> {
                         String formatted = String.format(format, player.getDisplayName(), message);
                         for (Player recipient : recipients) {
@@ -115,7 +112,7 @@ public class ChatListener implements Listener {
 
         String cmd = event.getMessage().toLowerCase();
         if (cmd.startsWith("/msg ") || cmd.startsWith("/tell ")
-                || cmd.startsWith("/w ")   || cmd.startsWith("/whisper ")
+                || cmd.startsWith("/w ") || cmd.startsWith("/whisper ")
                 || cmd.startsWith("/pm ")) {
             event.setCancelled(true);
             player.sendMessage(ChatColor.RED + "You are muted and cannot send private messages.");
@@ -128,7 +125,6 @@ public class ChatListener implements Listener {
     }
 
     private void applyPunishment(Player player, String message, String reason) {
-
         int muteDurationSeconds = configManager.getMuteDurationSeconds();
         mutedPlayers.put(player.getUniqueId(),
                 System.currentTimeMillis() + muteDurationSeconds * 1000L);
@@ -141,9 +137,9 @@ public class ChatListener implements Listener {
         if (configManager.shouldNotifyAdmins()) {
             String notification = ChatColor.translateAlternateColorCodes('&',
                     configManager.getAdminNotification()
-                            .replace("{player}",  player.getName())
+                            .replace("{player}", player.getName())
                             .replace("{message}", message)
-                            .replace("{reason}",  reason));
+                            .replace("{reason}", reason));
             for (Player p : Bukkit.getOnlinePlayers()) {
                 if (p.hasPermission("chatmoderator.admin")) {
                     p.sendMessage(notification);
@@ -186,4 +182,3 @@ public class ChatListener implements Listener {
         return Map.copyOf(mutedPlayers);
     }
 }
-

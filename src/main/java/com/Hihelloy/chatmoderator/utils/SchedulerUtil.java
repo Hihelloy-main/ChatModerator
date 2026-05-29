@@ -23,11 +23,10 @@ public class SchedulerUtil {
     private static AtomicBoolean SHUTTING_DOWN = new AtomicBoolean(false);
 
     public SchedulerUtil(Plugin plugin) {
-
     }
 
     public static void ensureEntity(@NotNull Entity entity, @NotNull Runnable runnable) {
-        if (entity instanceof Player && !((Player)entity).isOnline()) return;
+        if (entity instanceof Player && !((Player) entity).isOnline()) return;
 
         if (isFolia()) {
             if (scheduler.isOwnedByCurrentRegion(entity) || SHUTTING_DOWN.get()) {
@@ -45,7 +44,7 @@ public class SchedulerUtil {
     }
 
     public static Object ensureEntityLater(@NotNull Entity entity, @NotNull Runnable runnable, long delay) {
-        if (entity instanceof Player && !((Player)entity).isOnline()) return null;
+        if (entity instanceof Player && !((Player) entity).isOnline()) return null;
         delay = Math.max(1, delay);
         if (isFolia()) {
             return scheduler.entity(entity).execute(runnable, null, delay);
@@ -55,7 +54,7 @@ public class SchedulerUtil {
     }
 
     public static Object ensureEntityTimer(@NotNull Entity entity, @NotNull Runnable runnable, long delay, long repeat) {
-        if (entity instanceof Player && !((Player)entity).isOnline()) return null;
+        if (entity instanceof Player && !((Player) entity).isOnline()) return null;
         delay = Math.max(1, delay);
         repeat = Math.max(1, repeat);
         if (isFolia()) {
@@ -75,7 +74,6 @@ public class SchedulerUtil {
                 runCatch(runnable, "Error in ensureLocation task on shutdown");
                 return;
             }
-
             scheduler.region(location).execute(runnable);
         } else {
             if (Bukkit.isPrimaryThread()) {
@@ -103,7 +101,6 @@ public class SchedulerUtil {
         delay = Math.max(1, delay);
         repeat = Math.max(1, repeat);
         if (isFolia()) {
-
             return scheduler.region(location).runAtFixedRate((task) -> {
                 if (!runCatch(runnable, "Error in ensureLocationTimer task"))
                     task.cancel();
@@ -119,7 +116,6 @@ public class SchedulerUtil {
                 runCatch(runnable, "Error in runAsync task on shutdown");
                 return;
             }
-
             scheduler.async().runNow((task) -> {
                 if (!runCatch(runnable, "Error in runAsync task")) {
                     task.cancel();
@@ -146,7 +142,9 @@ public class SchedulerUtil {
     public static @NotNull Object runAsyncTimer(@NotNull Runnable runnable, long delay, long repeat) {
         delay = Math.max(1, delay);
         if (isFolia()) {
-            return scheduler.async().runAtFixedRate((Consumer<TaskImplementation<Void>>) (task) -> runnable.run(), delay * 50, repeat * 50, TimeUnit.MILLISECONDS);
+            return scheduler.async().runAtFixedRate(
+                    (Consumer<TaskImplementation<Void>>) (task) -> runnable.run(),
+                    delay * 50, repeat * 50, TimeUnit.MILLISECONDS);
         } else {
             return Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, runnable, delay, repeat);
         }
@@ -177,7 +175,7 @@ public class SchedulerUtil {
                 }
             }, delay);
         } else {
-            return  Bukkit.getScheduler().runTaskLater(plugin, runnable, delay);
+            return Bukkit.getScheduler().runTaskLater(plugin, runnable, delay);
         }
     }
 

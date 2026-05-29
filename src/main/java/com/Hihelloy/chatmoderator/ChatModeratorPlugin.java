@@ -26,12 +26,12 @@ public class ChatModeratorPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         plugin = this;
-        log    = getLogger();
+        log = getLogger();
 
         scheduler = new FoliaCompatibility(this).getServerImplementation();
 
-        schedulerUtil  = new SchedulerUtil(this);
-        configManager  = new ConfigManager(this);
+        schedulerUtil = new SchedulerUtil(this);
+        configManager = new ConfigManager(this);
         configManager.loadConfig();
 
         moderationService = new ModerationService(this, configManager);
@@ -60,7 +60,7 @@ public class ChatModeratorPlugin extends JavaPlugin {
     }
 
     private void checkAPIKeys() {
-        String provider  = configManager.getPreferredAIProvider();
+        String provider = configManager.getPreferredAIProvider();
         String openaiKey = configManager.getOpenAIApiKey();
         String geminiKey = configManager.getGeminiApiKey();
 
@@ -77,9 +77,19 @@ public class ChatModeratorPlugin extends JavaPlugin {
         return ChatColor.translateAlternateColorCodes('&', text);
     }
 
-    public ConfigManager getConfigManager()         { return configManager; }
-    public ModerationService getModerationService() { return moderationService; }
-    public SchedulerUtil getSchedulerUtil()         { return schedulerUtil; }
-    public ChatListener getChatListener()           { return chatListener; }
-}
+    public ConfigManager getConfigManager() {
+        return configManager;
+    }
 
+    public ModerationService getModerationService() {
+        return moderationService;
+    }
+
+    public SchedulerUtil getSchedulerUtil() {
+        return schedulerUtil;
+    }
+
+    public ChatListener getChatListener() {
+        return chatListener;
+    }
+}

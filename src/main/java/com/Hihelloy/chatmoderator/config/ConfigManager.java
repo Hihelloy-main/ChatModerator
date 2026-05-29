@@ -28,7 +28,6 @@ public class ConfigManager {
     }
 
     public void applyNewConfigOptions() {
-
         if (!config.contains("ai.preferred-provider")) {
             config.set("ai.preferred-provider", "openai");
         }
@@ -179,4 +178,3 @@ public class ConfigManager {
         return config.getInt("moderation.mute-duration-seconds", 600);
     }
 }
-
